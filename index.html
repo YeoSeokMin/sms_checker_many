@@ -1,0 +1,31 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Read Excel File</title>
+    <link rel="stylesheet" href="assets/css/styles.css">
+    <!-- jQuery CDN -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.6.0/jquery.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.16.9/xlsx.full.min.js"></script>
+    <script src="assets/js/scripts.js"></script>
+    <title>Read Excel File</title>
+</head>
+<body>
+    <input type="file" id="fileUpload" multiple/>
+    <button id="confirmButton">확인</button>
+    <div id="count"></div>
+
+    <div>
+        <input type="number" id="startIndex" placeholder="Start Index">
+        <input type="number" id="endIndex" placeholder="End Index">
+        <button id="rangeCopyButton">범위 복사</button>
+    </div>
+    <div id="removedCount"></div>
+    <div id="copyButtons"></div>
+
+    <button id="downloadButton" style="display:none;">엑셀 다운로드</button>
+    <button id="toggleResultButton">결과 접기/펼치기</button>
+    <div id="result" style="display:none;"></div>
+</body>
+</html>

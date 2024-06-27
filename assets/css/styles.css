@@ -1,0 +1,15 @@
+#copyButtons button {
+    width: 40%;
+    height: 50px;
+    margin: 5px 10px 5px 10px;
+    background-color: #FFF;
+
+}
+
+#copyButtons button.clicked {
+    background-color: red;
+}
+
+#toggleResultButton {
+    margin: 5px 10px 5px 10px;
+}
