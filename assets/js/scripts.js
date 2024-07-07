@@ -7,9 +7,20 @@ var fileName = '';
 
 $(document).ready(function () {
     $('#fileUpload').on('change', function (e) {
+        $('#confirmButton').prop('disabled', true); // 확인 버튼 비활성화
+        $('#status').html(''); // 상태 초기화
+        phoneNumbers = [];
+        uniquePhoneNumbers = [];
+        invalidCount = 0;
+        totalCount = 0;
+        removedDuplicateCount = 0;
+
         var files = e.target.files;
         fileName = files[0].name.split('.').slice(0, -1).join('.'); // 확장자 제외한 파일 이름 저장
         
+        var fileCount = files.length;
+        var processedFiles = 0;
+
         Array.from(files).forEach(file => {
             var reader = new FileReader();
 
@@ -20,7 +31,7 @@ $(document).ready(function () {
                 workbook.SheetNames.forEach(sheetName => {
                     var worksheet = workbook.Sheets[sheetName];
                     if (!worksheet['!ref']) {
-                        console.log('빈 시트이거나 참조가 없습니다:', sheetName);
+                        updateStatus(`빈 시트이거나 참조가 없습니다: ${sheetName}`);
                         return;
                     }
                     var range = XLSX.utils.decode_range(worksheet['!ref']);
@@ -58,7 +69,7 @@ $(document).ready(function () {
                         }
 
                         columnMatchCount = matchedNumbers.size;
-                        console.log(`열 ${XLSX.utils.encode_col(C)}에서 매칭된 휴대폰 번호 수: ${columnMatchCount}`);
+                        updateStatus(`열 ${XLSX.utils.encode_col(C)}에서 매칭된 휴대폰 번호 수: ${columnMatchCount}`);
 
                         if (columnMatchCount > maxMatchCount) {
                             maxMatchCount = columnMatchCount;
@@ -67,7 +78,7 @@ $(document).ready(function () {
                     }
 
                     if (targetColumn >= 0) {
-                        console.log(`가장 많은 휴대폰 번호가 있는 열: ${XLSX.utils.encode_col(targetColumn)} (매칭된 번호 수: ${maxMatchCount})`);
+                        updateStatus(`가장 많은 휴대폰 번호가 있는 열: ${XLSX.utils.encode_col(targetColumn)} (매칭된 번호 수: ${maxMatchCount})`);
                         for (let R = range.s.r; R <= range.e.r; ++R) {
                             const cell_address = { c: targetColumn, r: R };
                             const cell_ref = XLSX.utils.encode_cell(cell_address);
@@ -84,15 +95,21 @@ $(document).ready(function () {
                             }
                         }
                     } else {
-                        console.log('휴대폰 번호를 찾을 수 없습니다.');
+                        updateStatus('휴대폰 번호를 찾을 수 없습니다.');
                     }
                 });
 
-                // 중복 제거
-                var uniqueSet = new Set(phoneNumbers);
-                uniquePhoneNumbers = Array.from(uniqueSet);
-                removedDuplicateCount = phoneNumbers.length - uniquePhoneNumbers.length;
-                console.log(`중복된 번호 개수: ${removedDuplicateCount}, 유효하지 않은 번호 개수: ${invalidCount}`);
+                // 파일 처리 완료 체크
+                processedFiles++;
+                if (processedFiles === fileCount) {
+                    // 중복 제거
+                    var uniqueSet = new Set(phoneNumbers);
+                    uniquePhoneNumbers = Array.from(uniqueSet);
+                    removedDuplicateCount = phoneNumbers.length - uniquePhoneNumbers.length;
+                    updateStatus(`중복된 번호 개수: ${removedDuplicateCount}, 유효하지 않은 번호 개수: ${invalidCount}`);
+                    
+                    $('#confirmButton').prop('disabled', false); // 확인 버튼 활성화
+                }
             };
 
             reader.onerror = function () {
@@ -162,6 +179,13 @@ $(document).ready(function () {
         }
     });
 });
+
+function updateStatus(message) {
+    $('#status').html(`<p>${message}</p>`);
+    setTimeout(() => {
+        $('#status').html('');
+    }, 100); // 메시지를 잠시 후에 지우기
+}
 
 function copyToClipboard(start, end, button) {
     var textToCopy = uniquePhoneNumbers.slice(start, end).join('\n');
