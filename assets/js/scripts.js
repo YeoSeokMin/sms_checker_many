@@ -21,10 +21,13 @@ $(document).ready(function () {
         var fileCount = files.length;
         var processedFiles = 0;
 
+        console.log(`파일 업로드 시작: ${fileCount}개의 파일`);
+
         Array.from(files).forEach(file => {
             var reader = new FileReader();
 
             reader.onload = function (e) {
+                console.log(`파일 읽기 시작: ${file.name}`);
                 var data = new Uint8Array(e.target.result);
                 var workbook = XLSX.read(data, { type: 'array' });
 
@@ -32,7 +35,7 @@ $(document).ready(function () {
                     var worksheet = workbook.Sheets[sheetName];
                     if (!worksheet['!ref']) {
                         updateStatus(`빈 시트이거나 참조가 없습니다: ${sheetName}`);
-                        return;
+                        return;  // 해당 시트를 건너뜀
                     }
                     var range = XLSX.utils.decode_range(worksheet['!ref']);
                     var regexPatterns = [
@@ -85,7 +88,6 @@ $(document).ready(function () {
                             const cell = worksheet[cell_ref];
                             if (cell && cell.v) {
                                 const cleanedNumber = String(cell.v).replace(/[^0-9]/g, '');
-                                // console.log(`Original: ${cell.v}, Cleaned: ${cleanedNumber}`); // 디버그 로그 추가
                                 const lastEightDigits = cleanedNumber.slice(-8);
                                 if (lastEightDigits.length === 8) {
                                     phoneNumbers.push('8210' + lastEightDigits);
@@ -101,6 +103,7 @@ $(document).ready(function () {
 
                 // 파일 처리 완료 체크
                 processedFiles++;
+                console.log(`파일 처리 완료: ${file.name}`);
                 if (processedFiles === fileCount) {
                     // 중복 제거
                     var uniqueSet = new Set(phoneNumbers);
@@ -113,6 +116,7 @@ $(document).ready(function () {
             };
 
             reader.onerror = function () {
+                console.error('파일을 읽는 중 오류가 발생했습니다.');
                 alert('파일을 읽는 중 오류가 발생했습니다.');
             };
 
@@ -124,7 +128,7 @@ $(document).ready(function () {
         if (uniquePhoneNumbers.length > 0) {
             $('#result').hide();
             $('#toggleResultButton').show();
-            $('#downloadButton').show();
+            $('#downloadButtons').html(''); // 다운로드 버튼 초기화
 
             var html = '<ul>';
             uniquePhoneNumbers.forEach(number => {
@@ -147,25 +151,28 @@ $(document).ready(function () {
                 let button = `<button onclick="copyToClipboard(${i}, ${end}, this)">${range}</button>`;
                 $('#copyButtons').append(button);
             }
+
+            var totalNumbers = uniquePhoneNumbers.length;
+            var chunkSize = 500000;
+            var numberOfChunks = Math.ceil(totalNumbers / chunkSize);
+
+            for (let i = 0; i < numberOfChunks; i++) {
+                let start = i * chunkSize + 1;
+                let end = (i + 1) * chunkSize > totalNumbers ? totalNumbers : (i + 1) * chunkSize;
+                let button = `<button onclick="downloadExcel(${i})">엑셀 다운로드 ${start}-${end}</button>`;
+                $('#downloadButtons').append(button);
+            }
         } else {
             $('#result').html('<p>먼저 파일을 업로드해주세요.</p>');
             $('#count').html('');
             $('#removedCount').html('');
             $('#copyButtons').html('');
+            $('#downloadButtons').html('');
         }
     });
 
     $('#toggleResultButton').on('click', function () {
         $('#result').toggle();
-    });
-
-    $('#downloadButton').on('click', function () {
-        var wb = XLSX.utils.book_new();
-        var ws = XLSX.utils.aoa_to_sheet(uniquePhoneNumbers.map(number => [number]));
-        XLSX.utils.book_append_sheet(wb, ws, 'Unique Phone Numbers');
-
-        var downloadFileName = fileName + ' 수정본.xlsx';
-        XLSX.writeFile(wb, downloadFileName);
     });
 
     $('#rangeCopyButton').on('click', function () {
@@ -181,6 +188,7 @@ $(document).ready(function () {
 });
 
 function updateStatus(message) {
+    console.log(message); // 콘솔에 메시지 출력
     $('#status').html(`<p>${message}</p>`);
     setTimeout(() => {
         $('#status').html('');
@@ -197,4 +205,16 @@ function copyToClipboard(start, end, button) {
     }, function (err) {
         console.error('클립보드 복사 실패: ', err);
     });
+}
+
+function downloadExcel(chunkIndex) {
+    var wb = XLSX.utils.book_new();
+    var chunkSize = 500000;
+    var start = chunkIndex * chunkSize;
+    var end = (chunkIndex + 1) * chunkSize > uniquePhoneNumbers.length ? uniquePhoneNumbers.length : (chunkIndex + 1) * chunkSize;
+    var ws = XLSX.utils.aoa_to_sheet(uniquePhoneNumbers.slice(start, end).map(number => [number]));
+    XLSX.utils.book_append_sheet(wb, ws, `Phone Numbers ${start + 1}-${end}`);
+
+    var downloadFileName = `${fileName} 수정본 ${start + 1}-${end}.xlsx`;
+    XLSX.writeFile(wb, downloadFileName);
 }
