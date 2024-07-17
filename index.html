@@ -12,7 +12,7 @@
 <body>
     <input type="file" id="fileUpload" multiple/>
     <button id="confirmButton" disabled>확인</button>
-    <div id="status"></div>
+    <div id="status" style="display: none;"></div>
     <div id="count"></div>
 
     <div>
@@ -23,7 +23,9 @@
     <div id="removedCount"></div>
     <div id="copyButtons"></div>
     
-    <div id="downloadButtons"></div> <!-- 다운로드 버튼을 추가할 요소 -->
+    <div id="downloadButtons">
+        <button id="downloadAllButton">전체 데이터 엑셀 다운로드</button>
+    </div>
 
     <button id="toggleResultButton">결과 접기/펼치기</button>
     <div id="result" style="display:none;"></div>
