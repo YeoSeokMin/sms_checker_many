@@ -23,7 +23,6 @@ async function handleFileUpload(e) {
     console.clear();
     console.log(`파일 업로드 시작: ${files.length}개의 파일`);
 
-    // 모든 파일을 병렬로 읽기
     await Promise.all(files.map(file => readFile(file)));
 
     processPhoneNumbers();
@@ -59,16 +58,24 @@ function readFile(file) {
             try {
                 const data = new Uint8Array(e.target.result);
                 const workbook = XLSX.read(data, { type: 'array' });
+                if (!workbook.SheetNames.length) {
+                    console.warn(`빈 파일입니다: ${file.name}`);
+                    resolve();
+                    return;
+                }
                 handleWorkbook(workbook);
                 console.log(`파일 처리 완료: ${file.name} (시트 개수: ${workbook.SheetNames.length})`);
                 resolve();
             } catch (error) {
                 console.error('파일을 읽는 중 오류가 발생했습니다.', error);
                 alert('파일을 읽는 중 오류가 발생했습니다.');
-                reject(error);
+                resolve(); // reject 대신 resolve 호출하여 프로세스를 계속 진행
             }
         };
-        reader.onerror = reject;
+        reader.onerror = () => {
+            console.error(`파일을 읽는 중 오류가 발생했습니다: ${file.name}`);
+            resolve(); // reject 대신 resolve 호출하여 프로세스를 계속 진행
+        };
         reader.readAsArrayBuffer(file);
     });
 }
@@ -77,6 +84,7 @@ function handleWorkbook(workbook) {
     workbook.SheetNames.forEach(sheetName => {
         const worksheet = workbook.Sheets[sheetName];
         if (!worksheet || !worksheet['!ref']) {
+            console.warn(`비어 있는 시트입니다: ${sheetName}`);
             return;
         }
         const range = XLSX.utils.decode_range(worksheet['!ref']);
@@ -95,7 +103,6 @@ function getColumnDataWithMaxMatches(worksheet, range) {
         /82\d{2}\d{7,8}/,
         /01[1-9][- ]?\d{3,4}[- ]?\d{4}/,
         /10[- ]?\d{4}[- ]?\d{4}/,
-        /10\d{7}/
     ];
 
     let maxMatchCount = 0;
@@ -158,7 +165,6 @@ function applyExcelFormula(number) {
 }
 
 function processPhoneNumbers() {
-    // 전체 번호 개수를 구할 때 초기화하고 필터링을 진행합니다.
     totalCount = phoneNumbers.length;
 
     phoneNumbers = phoneNumbers.filter(number => {
@@ -183,6 +189,7 @@ function processPhoneNumbers() {
             return true;
         } else {
             invalidCount++;
+            // console.warn(`유효하지 않은 번호: ${number}`);
             return false;
         }
     });
@@ -190,9 +197,6 @@ function processPhoneNumbers() {
     const uniqueSet = new Set(validPhoneNumbers);
     uniquePhoneNumbers = Array.from(uniqueSet);
     removedDuplicateCount = validPhoneNumbers.length - uniquePhoneNumbers.length;
-
-    // totalCount를 재계산하는 대신 초기 값을 사용합니다.
-    // totalCount = uniquePhoneNumbers.length + removedDuplicateCount + invalidCount;
 }
 
 function isValidPhoneNumber(number) {
@@ -229,7 +233,6 @@ function displayCounts() {
     $('#removedCount').append('<br>유효하지 않은 번호 개수: ' + invalidCount);
     $('#removedCount').append('<br>공란의 개수: ' + emptyCount);
     $('#removedCount').append('<br>총 삭제된 개수: ' + (removedDuplicateCount + invalidCount + emptyCount));
-    // totalCount를 초기에 세팅한 값으로 표시합니다.
     $('#removedCount').append('<br>전체 데이터 개수: ' + totalCount);
 }
 
