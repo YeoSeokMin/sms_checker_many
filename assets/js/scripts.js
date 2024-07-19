@@ -1,9 +1,9 @@
 var phoneNumbers = [];
 var uniquePhoneNumbers = [];
-var invalidCount = 0; 
-var totalCount = 0; 
-var removedDuplicateCount = 0; 
-var emptyCount = 0; 
+var invalidCount = 0;
+var totalCount = 0;
+var removedDuplicateCount = 0;
+var emptyCount = 0;
 var fileName = '';
 
 $(document).ready(function () {
@@ -75,7 +75,10 @@ function readFile(file) {
 function handleWorkbook(workbook) {
     workbook.SheetNames.forEach(sheetName => {
         const worksheet = workbook.Sheets[sheetName];
-        if (!worksheet['!ref']) return;
+        if (!worksheet || !worksheet['!ref']) {
+            console.log(`엑셀 시트가 비어있습니다. ${sheetName}`);
+            return;
+        }
         const range = XLSX.utils.decode_range(worksheet['!ref']);
         const columnData = getColumnDataWithMaxMatches(worksheet, range);
         if (columnData.targetColumn >= 0) {
