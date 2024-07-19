@@ -20,6 +20,7 @@ async function handleFileUpload(e) {
     const files = Array.from(e.target.files);
     fileName = getFileNameWithoutExtension(files[0].name);
 
+    console.clear();
     console.log(`파일 업로드 시작: ${files.length}개의 파일`);
 
     // 모든 파일을 병렬로 읽기
@@ -59,7 +60,7 @@ function readFile(file) {
                 const data = new Uint8Array(e.target.result);
                 const workbook = XLSX.read(data, { type: 'array' });
                 handleWorkbook(workbook);
-                console.log(`파일 처리 완료: ${file.name}`);
+                console.log(`파일 처리 완료: ${file.name} (시트 개수: ${workbook.SheetNames.length})`);
                 resolve();
             } catch (error) {
                 console.error('파일을 읽는 중 오류가 발생했습니다.', error);
@@ -76,7 +77,6 @@ function handleWorkbook(workbook) {
     workbook.SheetNames.forEach(sheetName => {
         const worksheet = workbook.Sheets[sheetName];
         if (!worksheet || !worksheet['!ref']) {
-            console.log(`엑셀 시트가 비어있습니다. ${sheetName}`);
             return;
         }
         const range = XLSX.utils.decode_range(worksheet['!ref']);
@@ -150,16 +150,17 @@ function extractPhoneNumbersFromColumn(worksheet, range, targetColumn) {
 }
 
 function applyExcelFormula(number) {
-    // 엑셀 수식을 JavaScript로 변환
-    var digits = number.replace(/\D/g, ''); // 숫자만 추출
-    var result = 0;
-    for (let i = 0; i < digits.length; i++) {
-        result += digits[digits.length - 1 - i] * Math.pow(10, i);
+    var cleanedNumber = number.replace(/\D/g, ''); // 숫자만 추출
+    if (!cleanedNumber.startsWith('82')) {
+        cleanedNumber = '82' + cleanedNumber;
     }
-    return '82' + result;
+    return cleanedNumber;
 }
 
 function processPhoneNumbers() {
+    // 전체 번호 개수를 구할 때 초기화하고 필터링을 진행합니다.
+    totalCount = phoneNumbers.length;
+
     phoneNumbers = phoneNumbers.filter(number => {
         if (number.length > 0) {
             return true;
@@ -178,7 +179,7 @@ function processPhoneNumbers() {
     });
 
     const validPhoneNumbers = phoneNumbers.filter(number => {
-        if (number.length === 12 || (number.startsWith('82') && (number.length === 12 || number.length === 13))) {
+        if (isValidPhoneNumber(number)) {
             return true;
         } else {
             invalidCount++;
@@ -190,8 +191,12 @@ function processPhoneNumbers() {
     uniquePhoneNumbers = Array.from(uniqueSet);
     removedDuplicateCount = validPhoneNumbers.length - uniquePhoneNumbers.length;
 
-    // 전체 데이터 개수 계산
-    totalCount = uniquePhoneNumbers.length + removedDuplicateCount + invalidCount;
+    // totalCount를 재계산하는 대신 초기 값을 사용합니다.
+    // totalCount = uniquePhoneNumbers.length + removedDuplicateCount + invalidCount;
+}
+
+function isValidPhoneNumber(number) {
+    return number.length === 12 || (number.startsWith('82') && (number.length === 12 || number.length === 13));
 }
 
 function displayResults() {
@@ -224,6 +229,7 @@ function displayCounts() {
     $('#removedCount').append('<br>유효하지 않은 번호 개수: ' + invalidCount);
     $('#removedCount').append('<br>공란의 개수: ' + emptyCount);
     $('#removedCount').append('<br>총 삭제된 개수: ' + (removedDuplicateCount + invalidCount + emptyCount));
+    // totalCount를 초기에 세팅한 값으로 표시합니다.
     $('#removedCount').append('<br>전체 데이터 개수: ' + totalCount);
 }
 
