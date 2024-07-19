@@ -68,7 +68,7 @@ function readFile(file) {
                 resolve();
             } catch (error) {
                 console.error('파일을 읽는 중 오류가 발생했습니다.', error);
-                alert('파일을 읽는 중 오류가 발생했습니다.');
+                // alert('파일을 읽는 중 오류가 발생했습니다.');
                 resolve(); // reject 대신 resolve 호출하여 프로세스를 계속 진행
             }
         };
