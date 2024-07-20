@@ -218,12 +218,31 @@ function processPhoneNumbers() {
         }
     });
 
-    // 4. 중복 제거
+    // 중복 제거 단계는 삭제
+}
+
+function isValidPhoneNumber(number) {
+    return number.length > 10 && number.length <= 12;
+}
+
+function displayResults() {
+    // 중복 제거
     const uniqueSet = new Set(phoneNumbers);
     uniquePhoneNumbers = Array.from(uniqueSet);
     removedDuplicateCount = phoneNumbers.length - uniquePhoneNumbers.length;
 
-    // 5. 12자리 이상 또는 10자리 이하 번호 유효하지 않은 번호로 처리
+    // 중복된 전화번호의 빈도 계산
+    const frequencyMap = phoneNumbers.reduce((acc, number) => {
+        acc[number] = (acc[number] || 0) + 1;
+        return acc;
+    }, {});
+
+    // 빈도가 높은 상위 100개 전화번호 추출
+    const topDuplicates = Object.entries(frequencyMap)
+        .sort((a, b) => b[1] - a[1])
+        .slice(0, 100);
+
+    // 12자리 이상 또는 10자리 이하 번호 유효하지 않은 번호로 처리
     uniquePhoneNumbers = uniquePhoneNumbers.filter(number => {
         if (number.length <= 12 && number.length > 10) {
             return true;
@@ -232,13 +251,7 @@ function processPhoneNumbers() {
             return false;
         }
     });
-}
 
-function isValidPhoneNumber(number) {
-    return number.length > 10 && number.length <= 12;
-}
-
-function displayResults() {
     if (uniquePhoneNumbers.length > 0) {
         $('#result').hide();
         $('#toggleResultButton').show();
@@ -250,6 +263,12 @@ function displayResults() {
     } else {
         displayNoDataMessage();
     }
+
+    // 상위 100개 중복된 전화번호와 빈도 콘솔에 출력
+    console.log('상위 100개 중복된 전화번호:');
+    topDuplicates.forEach(([number, count], index) => {
+        console.log(`${index + 1}위: ${number} - ${count}회`);
+    });
 }
 
 function displayPhoneNumbers() {
