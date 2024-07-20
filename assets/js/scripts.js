@@ -22,12 +22,26 @@ async function handleFileUpload(e) {
 
     console.clear();
     console.log(`파일 업로드 시작: ${files.length}개의 파일`);
+    
+    let processedFiles = 0;
+    const totalFiles = files.length;
 
-    await Promise.all(files.map(file => readFile(file)));
+    await Promise.all(files.map(file => {
+        return readFile(file).then(() => {
+            processedFiles++;
+            updateProgressBar(processedFiles, totalFiles);
+        });
+    }));
 
     processPhoneNumbers();
     enableConfirmButton();
     $('#confirmButton').trigger('click');
+}
+
+function updateProgressBar(processedFiles, totalFiles) {
+    const progress = (processedFiles / totalFiles) * 100;
+    $('#progressBar').css('width', progress + '%');
+    $('#progressText').text(Math.round(progress) + '%');
 }
 
 function resetState() {
@@ -63,24 +77,22 @@ function readFile(file) {
                     resolve();
                     return;
                 }
-                handleWorkbook(workbook);
-                console.log(`파일 처리 완료: ${file.name} (시트 개수: ${workbook.SheetNames.length})`);
+                handleWorkbook(workbook, file.name);
                 resolve();
             } catch (error) {
                 console.error('파일을 읽는 중 오류가 발생했습니다.', error);
-                // alert('파일을 읽는 중 오류가 발생했습니다.');
-                resolve(); // reject 대신 resolve 호출하여 프로세스를 계속 진행
+                resolve();
             }
         };
         reader.onerror = () => {
             console.error(`파일을 읽는 중 오류가 발생했습니다: ${file.name}`);
-            resolve(); // reject 대신 resolve 호출하여 프로세스를 계속 진행
+            resolve();
         };
         reader.readAsArrayBuffer(file);
     });
 }
 
-function handleWorkbook(workbook) {
+function handleWorkbook(workbook, fileName) {
     workbook.SheetNames.forEach(sheetName => {
         const worksheet = workbook.Sheets[sheetName];
         if (!worksheet || !worksheet['!ref']) {
@@ -90,7 +102,9 @@ function handleWorkbook(workbook) {
         const range = XLSX.utils.decode_range(worksheet['!ref']);
         const columnData = getColumnDataWithMaxMatches(worksheet, range);
         if (columnData.targetColumn >= 0) {
-            extractPhoneNumbersFromColumn(worksheet, range, columnData.targetColumn);
+            const { totalCount, emptyCount } = extractPhoneNumbersFromColumn(worksheet, range, columnData.targetColumn);
+            const columnLetter = XLSX.utils.encode_col(columnData.targetColumn); // 열 알파벳 추적
+            console.log(`파일 처리 완료: ${fileName} (시트 개수: ${workbook.SheetNames.length})(추적 열: ${columnLetter}열, 데이터 총 개수: ${totalCount}, 공란 개수: ${emptyCount})`);
         }
     });
 }
@@ -139,26 +153,35 @@ function getColumnDataWithMaxMatches(worksheet, range) {
 }
 
 function extractPhoneNumbersFromColumn(worksheet, range, targetColumn) {
+    let localTotalCount = 0;
+    let localEmptyCount = 0;
+
     for (let R = range.s.r; R <= range.e.r; ++R) {
         const cell_address = { c: targetColumn, r: R };
         const cell_ref = XLSX.utils.encode_cell(cell_address);
         const cell = worksheet[cell_ref];
         if (cell && cell.v) {
+            localTotalCount++;
             const cleanedNumber = applyExcelFormula(String(cell.v));
             if (cleanedNumber.length > 0) {
                 phoneNumbers.push(cleanedNumber);
             } else {
-                emptyCount++;
+                localEmptyCount++;
             }
         } else {
-            emptyCount++;
+            localEmptyCount++;
+            localTotalCount++;
         }
     }
+
+    return { totalCount: localTotalCount, emptyCount: localEmptyCount };
 }
 
 function applyExcelFormula(number) {
     var cleanedNumber = number.replace(/\D/g, ''); // 숫자만 추출
-    if (cleanedNumber.startsWith('0')) {
+    if (cleanedNumber.startsWith('82010')) {
+        cleanedNumber = '8210' + cleanedNumber.slice(4); // '8201'으로 시작하는 번호를 '8210'으로 변경
+    } else if (cleanedNumber.startsWith('0')) {
         cleanedNumber = '82' + cleanedNumber.slice(1);
     } else if (!cleanedNumber.startsWith('82')) {
         cleanedNumber = '82' + cleanedNumber;
@@ -169,6 +192,7 @@ function applyExcelFormula(number) {
 function processPhoneNumbers() {
     totalCount = phoneNumbers.length;
 
+    // 1. 빈 값 필터링
     phoneNumbers = phoneNumbers.filter(number => {
         if (number.length > 0) {
             return true;
@@ -178,17 +202,14 @@ function processPhoneNumbers() {
         }
     });
 
+    // 2. 전화번호 표준화
     phoneNumbers = phoneNumbers.map(number => {
-        number = number.replace(/^0+/, '');
-        if (number.startsWith('10')) {
-            number = '8210' + number.slice(2);
-        } else if (!number.startsWith('82')) {
-            number = '82' + number;
-        }
+        number = applyExcelFormula(number);
         return number;
     });
 
-    const validPhoneNumbers = phoneNumbers.filter(number => {
+    // 3. 유효한 전화번호 필터링
+    phoneNumbers = phoneNumbers.filter(number => {
         if (isValidPhoneNumber(number)) {
             return true;
         } else {
@@ -197,13 +218,24 @@ function processPhoneNumbers() {
         }
     });
 
-    const uniqueSet = new Set(validPhoneNumbers);
+    // 4. 중복 제거
+    const uniqueSet = new Set(phoneNumbers);
     uniquePhoneNumbers = Array.from(uniqueSet);
-    removedDuplicateCount = validPhoneNumbers.length - uniquePhoneNumbers.length;
+    removedDuplicateCount = phoneNumbers.length - uniquePhoneNumbers.length;
+
+    // 5. 12자리 이상 또는 10자리 이하 번호 유효하지 않은 번호로 처리
+    uniquePhoneNumbers = uniquePhoneNumbers.filter(number => {
+        if (number.length <= 12 && number.length > 10) {
+            return true;
+        } else {
+            invalidCount++;
+            return false;
+        }
+    });
 }
 
 function isValidPhoneNumber(number) {
-    return number.length === 12 || (number.startsWith('82') && (number.length === 12 || number.length === 13));
+    return number.length > 10 && number.length <= 12;
 }
 
 function displayResults() {

@@ -13,6 +13,10 @@
     <input type="file" id="fileUpload" multiple/>
     <button id="confirmButton" disabled>확인</button>
     <div id="status" style="display: none;"></div>
+    <div id="progressContainer" style="position: relative; max-width: 300px; margin-top: 10px; margin-bottom: 10px; border: 1px solid #000; text-align: center;">
+        <div id="progressBar" style="width: 0%; height: 20px; background-color: green; transition: width 0.4s;"></div>
+        <div id="progressText" style="position: absolute; top: 0; left: 50%; transform: translate(-50%, 0); width: 100%; color: #000">0%</div>
+    </div>
     <div id="count"></div>
 
     <div>
