@@ -158,7 +158,9 @@ function extractPhoneNumbersFromColumn(worksheet, range, targetColumn) {
 
 function applyExcelFormula(number) {
     var cleanedNumber = number.replace(/\D/g, ''); // 숫자만 추출
-    if (!cleanedNumber.startsWith('82')) {
+    if (cleanedNumber.startsWith('0')) {
+        cleanedNumber = '82' + cleanedNumber.slice(1);
+    } else if (!cleanedNumber.startsWith('82')) {
         cleanedNumber = '82' + cleanedNumber;
     }
     return cleanedNumber;
@@ -178,7 +180,9 @@ function processPhoneNumbers() {
 
     phoneNumbers = phoneNumbers.map(number => {
         number = number.replace(/^0+/, '');
-        if (!number.startsWith('82')) {
+        if (number.startsWith('10')) {
+            number = '8210' + number.slice(2);
+        } else if (!number.startsWith('82')) {
             number = '82' + number;
         }
         return number;
@@ -189,7 +193,6 @@ function processPhoneNumbers() {
             return true;
         } else {
             invalidCount++;
-            // console.warn(`유효하지 않은 번호: ${number}`);
             return false;
         }
     });
