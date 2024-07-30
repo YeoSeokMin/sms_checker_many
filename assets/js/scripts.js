@@ -356,7 +356,7 @@ function downloadInChunks(startChunk, endChunk, chunkSize) {
     for (let i = startChunk * chunkSize; i < endChunk * chunkSize && i < uniquePhoneNumbers.length; i += chunkSize) {
         let start = i + 1;
         let end = i + chunkSize > uniquePhoneNumbers.length ? uniquePhoneNumbers.length : i + chunkSize;
-        let chunkFileName = `${formattedDate}_수정본_${Math.ceil(start / chunkSize)}번.xlsx`;
+        let chunkFileName = `${formattedDate}_${Math.ceil(start / chunkSize)}.xlsx`;
         downloadRange(i, end, chunkFileName);
     }
 }
