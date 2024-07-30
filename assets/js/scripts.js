@@ -310,6 +310,12 @@ function createDownloadButtons() {
     $('#downloadButtons').append('<button id="toggleDownloadButtons">엑셀 다운로드 접기/펼치기</button>');
     $('#downloadButtons').append('<div id="additionalDownloadButtons" style="display:none;"></div>');
 
+    // 추가: 1만건씩 다운로드 버튼
+    $('#downloadButtons').append('<button id="downloadTenThousandButton">1만건씩 다운로드</button>');
+    $('#downloadTenThousandButton').on('click', function () {
+        downloadInChunks(10000);
+    });
+
     if (uniquePhoneNumbers.length > 500000) {
         for (let i = 0; i < uniquePhoneNumbers.length; i += 500000) {
             let start = i + 1;
@@ -376,5 +382,19 @@ function downloadAll(button) {
     XLSX.writeFile(wb, downloadFileName);
     if (button) {
         $(button).css('background-color', 'red');
+    }
+}
+
+// 추가: 1만건씩 다운로드 함수
+function downloadInChunks(chunkSize) {
+    const currentDate = new Date();
+    const formattedDate = currentDate.toISOString().slice(2, 10).replace(/-/g, '');
+
+    for (let i = 0; i < uniquePhoneNumbers.length; i += chunkSize) {
+        let start = i + 1;
+        let end = i + chunkSize > uniquePhoneNumbers.length ? uniquePhoneNumbers.length : i + chunkSize;
+        let range = `${start}~${end}`;
+        let chunkFileName = `${formattedDate}_수정본_${Math.ceil(start / chunkSize)}번.xlsx`;
+        downloadRange(i, end, chunkFileName);
     }
 }
