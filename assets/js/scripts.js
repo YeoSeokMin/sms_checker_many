@@ -102,9 +102,11 @@ function handleWorkbook(workbook, fileName) {
         const range = XLSX.utils.decode_range(worksheet['!ref']);
         const columnData = getColumnDataWithMaxMatches(worksheet, range);
         if (columnData.targetColumn >= 0) {
-            const { totalCount, emptyCount } = extractPhoneNumbersFromColumn(worksheet, range, columnData.targetColumn);
+            const { validCount, emptyCount: localEmptyCount } = extractPhoneNumbersFromColumn(worksheet, range, columnData.targetColumn);
+            emptyCount += localEmptyCount; // 공란의 개수를 누적
+            totalCount += validCount; // 유효한 데이터의 개수를 누적
             const columnLetter = XLSX.utils.encode_col(columnData.targetColumn); // 열 알파벳 추적
-            console.log(`파일 처리 완료: ${fileName} (시트 개수: ${workbook.SheetNames.length})(추적 열: ${columnLetter}열, 데이터 총 개수: ${totalCount}, 공란 개수: ${emptyCount})`);
+            console.log(`파일 처리 완료: ${fileName} (시트 개수: ${workbook.SheetNames.length})(추적 열: ${columnLetter}열, 유효한 데이터 개수: ${validCount}, 공란 개수: ${localEmptyCount})`);
         }
     });
 }
@@ -153,7 +155,7 @@ function getColumnDataWithMaxMatches(worksheet, range) {
 }
 
 function extractPhoneNumbersFromColumn(worksheet, range, targetColumn) {
-    let localTotalCount = 0;
+    let localValidCount = 0;
     let localEmptyCount = 0;
 
     for (let R = range.s.r; R <= range.e.r; ++R) {
@@ -161,20 +163,19 @@ function extractPhoneNumbersFromColumn(worksheet, range, targetColumn) {
         const cell_ref = XLSX.utils.encode_cell(cell_address);
         const cell = worksheet[cell_ref];
         if (cell && cell.v) {
-            localTotalCount++;
             const cleanedNumber = applyExcelFormula(String(cell.v));
             if (cleanedNumber.length > 0) {
                 phoneNumbers.push(cleanedNumber);
+                localValidCount++;
             } else {
                 localEmptyCount++;
             }
         } else {
             localEmptyCount++;
-            localTotalCount++;
         }
     }
 
-    return { totalCount: localTotalCount, emptyCount: localEmptyCount };
+    return { validCount: localValidCount, emptyCount: localEmptyCount };
 }
 
 function applyExcelFormula(number) {
@@ -190,8 +191,6 @@ function applyExcelFormula(number) {
 }
 
 function processPhoneNumbers() {
-    totalCount = phoneNumbers.length;
-
     // 1. 빈 값 필터링
     phoneNumbers = phoneNumbers.filter(number => {
         if (number.length > 0) {
@@ -217,6 +216,8 @@ function processPhoneNumbers() {
             return false;
         }
     });
+
+    totalCount = phoneNumbers.length + invalidCount; // 유효한 번호와 유효하지 않은 번호의 개수를 합하여 totalCount 설정
 
     // 중복 제거 단계는 삭제
 }
@@ -313,7 +314,7 @@ function createDownloadButtons() {
     // 추가: 1만건씩 다운로드 버튼
     $('#downloadButtons').append('<button id="downloadTenThousandButton">1만건씩 다운로드</button>');
     $('#downloadTenThousandButton').on('click', function () {
-        downloadInChunks(10000);
+        createTenThousandDownloadButtons();
     });
 
     if (uniquePhoneNumbers.length > 500000) {
@@ -329,6 +330,35 @@ function createDownloadButtons() {
     $('#toggleDownloadButtons').on('click', function () {
         $('#additionalDownloadButtons').toggle();
     });
+}
+
+function createTenThousandDownloadButtons() {
+    $('#additionalDownloadButtons').html('');
+    const chunkSize = 10000;
+    const groupSize = 10;
+    const totalChunks = Math.ceil(uniquePhoneNumbers.length / chunkSize);
+
+    for (let i = 0; i < totalChunks; i += groupSize) {
+        let startChunk = i * chunkSize + 1;
+        let endChunk = (i + groupSize) * chunkSize > uniquePhoneNumbers.length ? uniquePhoneNumbers.length : (i + groupSize) * chunkSize;
+        let buttonLabel = `${startChunk}-${endChunk} 다운로드`;
+        let button = `<button onclick="downloadInChunks(${i}, ${i + groupSize}, ${chunkSize})">${buttonLabel}</button>`;
+        $('#additionalDownloadButtons').append(button);
+    }
+
+    $('#additionalDownloadButtons').show();
+}
+
+function downloadInChunks(startChunk, endChunk, chunkSize) {
+    const currentDate = new Date();
+    const formattedDate = currentDate.toISOString().slice(2, 10).replace(/-/g, '');
+
+    for (let i = startChunk * chunkSize; i < endChunk * chunkSize && i < uniquePhoneNumbers.length; i += chunkSize) {
+        let start = i + 1;
+        let end = i + chunkSize > uniquePhoneNumbers.length ? uniquePhoneNumbers.length : i + chunkSize;
+        let chunkFileName = `${formattedDate}_수정본_${Math.ceil(start / chunkSize)}번.xlsx`;
+        downloadRange(i, end, chunkFileName);
+    }
 }
 
 function displayNoDataMessage() {
@@ -382,19 +412,5 @@ function downloadAll(button) {
     XLSX.writeFile(wb, downloadFileName);
     if (button) {
         $(button).css('background-color', 'red');
-    }
-}
-
-// 추가: 1만건씩 다운로드 함수
-function downloadInChunks(chunkSize) {
-    const currentDate = new Date();
-    const formattedDate = currentDate.toISOString().slice(2, 10).replace(/-/g, '');
-
-    for (let i = 0; i < uniquePhoneNumbers.length; i += chunkSize) {
-        let start = i + 1;
-        let end = i + chunkSize > uniquePhoneNumbers.length ? uniquePhoneNumbers.length : i + chunkSize;
-        let range = `${start}~${end}`;
-        let chunkFileName = `${formattedDate}_수정본_${Math.ceil(start / chunkSize)}번.xlsx`;
-        downloadRange(i, end, chunkFileName);
     }
 }
