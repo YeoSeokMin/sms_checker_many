@@ -223,7 +223,7 @@ function processPhoneNumbers() {
 }
 
 function isValidPhoneNumber(number) {
-    return number.length > 10 && number.length <= 12;
+    return number.length === 12;
 }
 
 function displayResults() {
@@ -245,10 +245,10 @@ function displayResults() {
 
     // 12자리 이상 또는 10자리 이하 번호 유효하지 않은 번호로 처리
     uniquePhoneNumbers = uniquePhoneNumbers.filter(number => {
-        if (number.length <= 12 && number.length > 10) {
+        if (number.length === 12) { // 번호가 정확히 12자리인 경우에만 true 반환
             return true;
         } else {
-            invalidCount++;
+            invalidCount++; // 그 외의 경우는 invalidCount 증가시키고 false 반환
             return false;
         }
     });
